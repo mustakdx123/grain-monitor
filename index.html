@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grain Quality & Moisture Monitor</title>
+  <style>
+    body { font-family: Arial; text-align: center; background: #f0f0f0; }
+    h1 { color: #2c3e50; }
+    video { width: 90%; max-width: 400px; border: 3px solid #333; border-radius: 10px; }
+    .result { margin-top: 15px; font-size: 1.3em; font-weight: bold; }
+    .good { color: green; }
+    .bad { color: red; }
+    .wet { color: blue; }
+  </style>
+</head>
+<body>
+  <h1>🌾 Grain Quality Analyzer</h1>
+  <video id="webcam" autoplay playsinline></video>
+  <div id="result" class="result">Loading model...</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest"></script>
+  <script>
+    const URL = "https://teachablemachine.withgoogle.com/models/gp3HG4vdj/";
+    let model, webcam, maxPredictions;
+
+    async function init() {
+      const modelURL = URL + "model.json";
+      const metadataURL = URL + "metadata.json";
+
+      model = await tmImage.load(modelURL, metadataURL);
+      maxPredictions = model.getTotalClasses();
+
+      const flip = true;
+      webcam = new tmImage.Webcam(400, 400, flip);
+      await webcam.setup();
+      await webcam.play();
+      window.requestAnimationFrame(loop);
+
+      document.getElementById("webcam").appendChild(webcam.canvas);
+      document.getElementById("result").innerText = "Model Ready!";
+    }
+
+    async function loop() {
+      webcam.update();
+      await predict();
+      window.requestAnimationFrame(loop);
+    }
+
+    async function predict() {
+      const prediction = await model.predict(webcam.canvas);
+      let topClass = prediction.reduce((a, b) => (a.probability > b.probability ? a : b));
+      let resultText = document.getElementById("result");
+      resultText.innerText = `Detected: ${topClass.className} (${(topClass.probability * 100).toFixed(1)}%)`;
+
+      if (topClass.className.toLowerCase().includes("good")) resultText.className = "result good";
+      else if (topClass.className.toLowerCase().includes("wet")) resultText.className = "result wet";
+      else resultText.className = "result bad";
+    }
+
+    init();
+  </script>
+</body>
+</html>
